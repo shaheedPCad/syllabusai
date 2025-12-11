@@ -1,0 +1,5 @@
+pypdf
+openai
+chromadb
+python-dotenv
+tiktoken
