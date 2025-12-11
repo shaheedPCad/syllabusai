@@ -1,5 +1,26 @@
-pypdf
-openai
-chromadb
-python-dotenv
-tiktoken
+# Core FastAPI & ASGI Server
+fastapi>=0.115.0
+uvicorn[standard]>=0.38.0
+
+# Database & ORM
+sqlmodel>=0.0.22
+asyncpg>=0.29.0
+psycopg2-binary>=2.9.9
+alembic>=1.17.0
+
+# Vector Database
+pgvector>=0.3.6
+
+# Task Queue
+celery[redis]>=5.6.0
+
+# Configuration & Validation
+pydantic-settings>=2.6.0
+python-multipart>=0.0.20
+python-dotenv>=1.2.0
+
+# RAG & AI Features (existing)
+pypdf>=6.4.0
+openai>=2.9.0
+chromadb>=1.3.6
+tiktoken>=0.12.0
