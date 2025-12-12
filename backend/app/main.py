@@ -9,6 +9,7 @@ from sqlalchemy import text
 
 from app.core import settings, get_session
 from app import celery_worker  # Import to ensure Celery loads
+from app.api.v1 import api_router
 
 
 # Initialize FastAPI
@@ -29,6 +30,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Include API routers
+app.include_router(api_router, prefix="/api/v1")
 
 
 @app.get("/")
