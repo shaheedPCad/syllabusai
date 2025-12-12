@@ -127,6 +127,31 @@ class S3Service:
             logger.error(f"Failed to delete file from S3: {e}")
             return False
 
+    def download_file(self, s3_key: str) -> bytes:
+        """
+        Download a file from S3.
+
+        Args:
+            s3_key: S3 key of the file to download
+
+        Returns:
+            File content as bytes
+
+        Raises:
+            ClientError: If download fails
+        """
+        try:
+            response = self.client.get_object(
+                Bucket=self.bucket_name,
+                Key=s3_key
+            )
+            content = response['Body'].read()
+            logger.info(f"Successfully downloaded file {s3_key}")
+            return content
+        except ClientError as e:
+            logger.error(f"Failed to download file from S3: {e}")
+            raise
+
 
 # Singleton instance
 s3_service = S3Service()

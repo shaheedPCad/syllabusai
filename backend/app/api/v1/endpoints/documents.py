@@ -1,4 +1,5 @@
 """Document upload and management endpoints."""
+import logging
 from typing import List
 from uuid import UUID
 
@@ -11,6 +12,9 @@ from app.api.deps import get_current_user, get_current_teacher
 from app.models import User, Course, Document
 from app.schemas import DocumentRead
 from app.services.storage import s3_service
+from app.celery_worker import celery_app
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -107,6 +111,13 @@ async def upload_document(
         session.add(document)
         await session.commit()
         await session.refresh(document)
+
+        # Trigger background processing task
+        celery_app.send_task(
+            "process_document",
+            args=[str(document.id)]
+        )
+        logger.info(f"Triggered processing task for document {document.id}")
 
         return document
 
