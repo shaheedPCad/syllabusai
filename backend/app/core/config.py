@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     # OpenAI
     OPENAI_API_KEY: str
 
+    # Object Storage (MinIO/S3)
+    S3_ENDPOINT_URL: str = "http://minio:9000"
+    S3_ACCESS_KEY: str = "minioadmin"
+    S3_SECRET_KEY: str = "minioadmin"
+    S3_BUCKET_NAME: str = "clarity-local"
+
     # Application
     APP_NAME: str = "Clarity LMS"
     DEBUG: bool = False
