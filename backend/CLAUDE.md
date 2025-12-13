@@ -316,6 +316,61 @@ def process_document(document_id: int):
 - Use connection pooling for database connections
 - Implement rate limiting for API endpoints
 
+## pgvector Similarity Search
+
+The application uses pgvector for semantic search over document embeddings.
+
+### Operators
+
+pgvector provides several distance operators for nearest neighbor queries:
+
+| Operator | Distance Metric | SQLAlchemy Method | Use Case |
+|----------|-----------------|-------------------|----------|
+| `<->` | L2 (Euclidean) | `.l2_distance()` | Default distance |
+| `<=>` | Cosine distance | `.cosine_distance()` | **Recommended for embeddings** |
+| `<#>` | Negative inner product | `.max_inner_product()` | Normalized vectors |
+
+### Similarity Search Pattern
+
+The Chat API uses pgvector for semantic document retrieval:
+
+```python
+from sqlalchemy import select
+
+# Cosine similarity (0-1, higher = more similar)
+similarity = (1 - DocumentChunk.embedding.cosine_distance(query_embedding)).label("similarity")
+
+result = await session.execute(
+    select(DocumentChunk, similarity)
+    .join(Document)
+    .where(Document.course_id == course_id)
+    .where(similarity >= 0.7)  # Threshold filter
+    .order_by(similarity.desc())  # Most similar first
+    .limit(5)
+)
+
+chunks_with_scores = result.all()
+```
+
+### Key Points
+- Use **cosine distance** for OpenAI embeddings (normalized)
+- Always use `ORDER BY` and `LIMIT` for nearest neighbor queries
+- Convert distance to similarity: `similarity = 1 - distance`
+- Filter by similarity threshold to exclude irrelevant results
+- Join with Document table to filter by course_id
+
+### Implemented RAG Pipeline
+1. **Document Upload** → Triggers background processing (Celery)
+2. **PDF Processing** → Extract text with pypdf
+3. **Text Chunking** → RecursiveCharacterTextSplitter (1000 chars, 200 overlap)
+4. **Embedding Generation** → OpenAI text-embedding-3-small (1536 dimensions)
+5. **Storage** → DocumentChunk table with pgvector embeddings
+6. **Query** → Chat endpoint embeds question → pgvector search → GPT-4 synthesis
+
+### Resources
+- [pgvector Documentation](https://github.com/pgvector/pgvector)
+- [pgvector-python SQLAlchemy Integration](https://github.com/pgvector/pgvector-python)
+
 ## Testing
 
 ```bash
