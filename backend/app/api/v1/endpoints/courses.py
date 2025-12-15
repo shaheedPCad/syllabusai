@@ -117,6 +117,49 @@ async def get_course(
     return course
 
 
+@router.post("/join", status_code=201)
+async def join_course_by_code(
+    join_data: CourseJoin,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Enroll student in course using only join_code.
+    Students only. Looks up course by join_code.
+    """
+    if current_user.role != "student":
+        raise HTTPException(403, "Only students can join courses")
+
+    # Find course by join code
+    result = await session.execute(
+        select(Course).where(Course.join_code == join_data.join_code)
+    )
+    course = result.scalar_one_or_none()
+
+    if not course:
+        raise HTTPException(404, "Course not found with that join code")
+
+    # Check if already enrolled
+    result = await session.execute(
+        select(Enrollment).where(
+            Enrollment.user_id == current_user.id,
+            Enrollment.course_id == course.id
+        )
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(400, "Already enrolled in this course")
+
+    # Create enrollment
+    enrollment = Enrollment(
+        user_id=current_user.id,
+        course_id=course.id
+    )
+    session.add(enrollment)
+    await session.commit()
+
+    return {"message": "Successfully enrolled in course"}
+
+
 @router.post("/{course_id}/join", status_code=201)
 async def join_course(
     course_id: UUID,
@@ -127,6 +170,7 @@ async def join_course(
     """
     Enroll student in course using join_code.
     Students only.
+    (Deprecated: Use POST /join instead)
     """
     if current_user.role != "student":
         raise HTTPException(403, "Only students can join courses")
