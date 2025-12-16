@@ -50,6 +50,9 @@ class User(SQLModel, table=True):
         back_populates="student",
         sa_relationship_kwargs={"foreign_keys": "Grade.student_id"}
     )
+    study_notes: List["StudyNote"] = Relationship(back_populates="user")
+    flashcard_sets: List["StudyFlashcardSet"] = Relationship(back_populates="user")
+    quiz_sets: List["StudyQuizSet"] = Relationship(back_populates="user")
 
 
 # ============================================================================
@@ -225,6 +228,9 @@ class Document(SQLModel, table=True):
     # Relationships
     course: Optional[Course] = Relationship(back_populates="documents")
     chunks: List["DocumentChunk"] = Relationship(back_populates="document")
+    study_notes: List["StudyNote"] = Relationship(back_populates="document")
+    flashcard_sets: List["StudyFlashcardSet"] = Relationship(back_populates="document")
+    quiz_sets: List["StudyQuizSet"] = Relationship(back_populates="document")
 
 
 # ============================================================================
@@ -269,3 +275,97 @@ class DocumentChunk(SQLModel, table=True):
 
     # Relationships
     document: Optional[Document] = Relationship(back_populates="chunks")
+
+
+# ============================================================================
+# STUDY HUB MODELS
+# ============================================================================
+
+class StudyNote(SQLModel, table=True):
+    """Persisted study notes (brief or thorough) generated from documents."""
+
+    __tablename__ = "study_notes"
+
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        sa_column=Column(PGUUID(as_uuid=True), primary_key=True)
+    )
+
+    document_id: uuid.UUID = Field(
+        sa_column=Column(PGUUID(as_uuid=True), ForeignKey("documents.id"), index=True)
+    )
+    user_id: uuid.UUID = Field(
+        sa_column=Column(PGUUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    )
+
+    mode: str = Field(max_length=20)  # "brief" or "thorough"
+    content: str = Field(sa_column=Column(Text))  # Markdown content
+
+    created_at: datetime = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=func.now())
+    )
+
+    # Relationships
+    document: Optional[Document] = Relationship(back_populates="study_notes")
+    user: Optional[User] = Relationship(back_populates="study_notes")
+
+
+class StudyFlashcardSet(SQLModel, table=True):
+    """Persisted flashcard sets generated from documents."""
+
+    __tablename__ = "study_flashcard_sets"
+
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        sa_column=Column(PGUUID(as_uuid=True), primary_key=True)
+    )
+
+    document_id: uuid.UUID = Field(
+        sa_column=Column(PGUUID(as_uuid=True), ForeignKey("documents.id"), index=True)
+    )
+    user_id: uuid.UUID = Field(
+        sa_column=Column(PGUUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    )
+
+    flashcards: str = Field(sa_column=Column(Text))  # JSON array of Flashcard objects
+    total_cards: int = Field(ge=0)
+
+    created_at: datetime = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=func.now())
+    )
+
+    # Relationships
+    document: Optional[Document] = Relationship(back_populates="flashcard_sets")
+    user: Optional[User] = Relationship(back_populates="flashcard_sets")
+
+
+class StudyQuizSet(SQLModel, table=True):
+    """Persisted quiz sets generated from documents."""
+
+    __tablename__ = "study_quiz_sets"
+
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        sa_column=Column(PGUUID(as_uuid=True), primary_key=True)
+    )
+
+    document_id: uuid.UUID = Field(
+        sa_column=Column(PGUUID(as_uuid=True), ForeignKey("documents.id"), index=True)
+    )
+    user_id: uuid.UUID = Field(
+        sa_column=Column(PGUUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    )
+
+    questions: str = Field(sa_column=Column(Text))  # JSON array of QuizQuestion objects
+    total_questions: int = Field(ge=0)
+
+    created_at: datetime = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), server_default=func.now())
+    )
+
+    # Relationships
+    document: Optional[Document] = Relationship(back_populates="quiz_sets")
+    user: Optional[User] = Relationship(back_populates="quiz_sets")

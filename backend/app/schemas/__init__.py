@@ -6,9 +6,15 @@ from app.schemas.study import (
     Flashcard,
     FlashcardSet,
     FlashcardResponse,
+    FlashcardRequest,
     QuizQuestion,
     QuizSet,
     QuizResponse,
+    QuizRequest,
+    StudyNoteRequest,
+    StudyNoteResponse,
+    StudyHistoryItem,
+    StudyHistoryResponse,
 )
 
 __all__ = [
@@ -23,7 +29,13 @@ __all__ = [
     "Flashcard",
     "FlashcardSet",
     "FlashcardResponse",
+    "FlashcardRequest",
     "QuizQuestion",
     "QuizSet",
     "QuizResponse",
+    "QuizRequest",
+    "StudyNoteRequest",
+    "StudyNoteResponse",
+    "StudyHistoryItem",
+    "StudyHistoryResponse",
 ]
