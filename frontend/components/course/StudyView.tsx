@@ -16,7 +16,7 @@ import { Loader2, FileText, BookOpen, Brain, Target } from 'lucide-react';
 import { NoteView } from './NoteView';
 import { FlashcardSession } from './FlashcardSession';
 import { QuizSession } from './QuizSession';
-import { getDocuments, type Document } from '@/services/courses';
+import { getDocuments, type Document } from '@/services/documents';
 import {
   generateStudyNote,
   generateFlashcards,
