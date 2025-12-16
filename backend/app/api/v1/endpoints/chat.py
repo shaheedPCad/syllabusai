@@ -86,7 +86,7 @@ async def chat_with_course(
             question=request.question,
             session=session,
             top_k=5,
-            similarity_threshold=0.5  # Lowered from 0.7 based on testing
+            similarity_threshold=0.3  # Lowered to 0.3 for better question matching
         )
 
         # Build response with sources
