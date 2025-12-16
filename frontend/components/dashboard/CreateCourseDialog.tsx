@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -35,6 +35,7 @@ interface CreateCourseDialogProps {
 export function CreateCourseDialog({ onCourseCreated }: CreateCourseDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const isSubmittingRef = useRef(false); // Prevent double-submit
 
   const {
     register,
@@ -46,7 +47,13 @@ export function CreateCourseDialog({ onCourseCreated }: CreateCourseDialogProps)
   });
 
   const onSubmit = async (data: CourseFormData) => {
+    // Prevent double-submit with synchronous check
+    if (isSubmittingRef.current) {
+      return;
+    }
+
     try {
+      isSubmittingRef.current = true;
       setLoading(true);
       await createCourse({
         title: data.title,
@@ -64,6 +71,7 @@ export function CreateCourseDialog({ onCourseCreated }: CreateCourseDialogProps)
       alert(error.response?.data?.detail || 'Failed to create course');
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 

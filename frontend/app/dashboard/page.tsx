@@ -38,14 +38,14 @@ export default function DashboardPage() {
   const isTeacher = currentUser.includes('teacher');
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-slate-50">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex flex-col gap-6 mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">My Courses</h1>
-              <p className="text-muted-foreground mt-1">
+              <h1 className="text-3xl font-bold text-slate-900">My Courses</h1>
+              <p className="text-slate-500 mt-1">
                 {isTeacher ? 'Manage your courses' : 'Your enrolled courses'}
               </p>
             </div>
@@ -64,23 +64,23 @@ export default function DashboardPage() {
         {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
           </div>
         )}
 
         {/* Error State */}
         {error && !loading && (
-          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-            <p className="text-sm text-destructive">{error}</p>
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+            <p className="text-sm text-red-600">{error}</p>
           </div>
         )}
 
         {/* Empty State */}
         {!loading && !error && courses.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No courses found</h3>
-            <p className="text-muted-foreground mb-4">
+            <BookOpen className="h-12 w-12 text-slate-400 mb-4" />
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">No courses found</h3>
+            <p className="text-slate-500 mb-4">
               {isTeacher
                 ? 'Create your first course to get started.'
                 : 'Join a course using a join code to get started.'}

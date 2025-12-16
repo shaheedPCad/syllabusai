@@ -7,7 +7,7 @@ from typing import Optional, List
 import uuid
 
 from sqlmodel import Field, SQLModel, Relationship
-from sqlalchemy import Column, DateTime, Text, func, ForeignKey
+from sqlalchemy import Column, DateTime, Text, func, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from pgvector.sqlalchemy import Vector
 
@@ -60,6 +60,9 @@ class Course(SQLModel, table=True):
     """Course model for classes."""
 
     __tablename__ = "courses"
+    __table_args__ = (
+        UniqueConstraint('teacher_id', 'course_code', name='uq_courses_teacher_course_code'),
+    )
 
     id: uuid.UUID = Field(
         default_factory=uuid.uuid4,

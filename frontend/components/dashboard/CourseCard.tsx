@@ -1,6 +1,5 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BookOpen } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import type { Course } from '@/services/courses';
 
@@ -10,31 +9,39 @@ interface CourseCardProps {
 
 export function CourseCard({ course }: CourseCardProps) {
   return (
-    <Card className="flex flex-col h-full hover:shadow-lg transition-shadow">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-primary" />
-            <CardTitle className="text-xl">{course.title}</CardTitle>
-          </div>
-          <span className="text-xs font-mono bg-primary/10 text-primary px-2 py-1 rounded">
+    <div className="group bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden hover:-translate-y-1 hover:shadow-md hover:border-blue-300 transition-all duration-300">
+      {/* Card Header */}
+      <div className="p-6">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <h3 className="text-xl font-semibold text-slate-900 line-clamp-1 flex-1">
+            {course.title}
+          </h3>
+          <span className="bg-blue-50 text-blue-700 font-medium rounded-full px-3 py-1 text-xs whitespace-nowrap">
             {course.course_code}
           </span>
         </div>
-        <CardDescription className="line-clamp-2">
+        
+        {/* Description */}
+        <p className="text-slate-500 text-sm line-clamp-2 mt-2">
           {course.description}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex-1 flex flex-col justify-end">
-        <div className="flex flex-col gap-2">
-          <div className="text-xs text-muted-foreground">
-            Join Code: <code className="bg-muted px-1.5 py-0.5 rounded">{course.join_code}</code>
+        </p>
+      </div>
+
+      {/* Card Footer */}
+      <div className="px-6 pb-6">
+        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+          <div className="text-xs text-slate-400">
+            Code: <code className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono">{course.join_code}</code>
           </div>
-          <Link href={`/courses/${course.id}`} className="w-full">
-            <Button className="w-full">Enter Class</Button>
-          </Link>
         </div>
-      </CardContent>
-    </Card>
+        
+        <Link href={`/courses/${course.id}`} className="block mt-4">
+          <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 font-medium shadow-sm transition-colors group">
+            Enter Class
+            <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+          </Button>
+        </Link>
+      </div>
+    </div>
   );
 }

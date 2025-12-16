@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { joinCourse } from '@/services/courses';
-import { UserPlus, Loader2 } from 'lucide-react';
+import { PlusCircle, Loader2 } from 'lucide-react';
 
 interface JoinCourseProps {
   onCourseJoined: () => void;
@@ -53,9 +53,13 @@ export function JoinCourse({ onCourseJoined }: JoinCourseProps) {
           onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
           onKeyPress={handleKeyPress}
           disabled={loading}
-          className="max-w-[200px]"
+          className="max-w-[200px] focus-visible:ring-blue-600"
         />
-        <Button onClick={handleJoin} disabled={loading || !joinCode.trim()}>
+        <Button 
+          onClick={handleJoin} 
+          disabled={loading || !joinCode.trim()}
+          className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+        >
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -63,14 +67,14 @@ export function JoinCourse({ onCourseJoined }: JoinCourseProps) {
             </>
           ) : (
             <>
-              <UserPlus className="mr-2 h-4 w-4" />
+              <PlusCircle className="mr-2 h-4 w-4" />
               Join Course
             </>
           )}
         </Button>
       </div>
       {error && (
-        <p className="text-sm text-destructive">{error}</p>
+        <p className="text-sm text-red-600">{error}</p>
       )}
     </div>
   );

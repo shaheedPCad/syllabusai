@@ -6,6 +6,7 @@ import string
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.core.db import get_session
 from app.api.deps import get_current_user, get_current_teacher
@@ -52,8 +53,20 @@ async def create_course(
         teacher_id=current_user.id
     )
     session.add(course)
-    await session.commit()
-    await session.refresh(course)
+
+    try:
+        await session.commit()
+        await session.refresh(course)
+    except IntegrityError as e:
+        await session.rollback()
+        # Check if it's a duplicate course code
+        if "uq_courses_teacher_course_code" in str(e):
+            raise HTTPException(
+                400,
+                f"You already have a course with code '{course_in.course_code}'. Please use a different course code."
+            )
+        # Otherwise, re-raise
+        raise HTTPException(500, "Failed to create course")
 
     return course
 
