@@ -3,6 +3,7 @@ Study Service for generating flashcards and quizzes from documents.
 Uses instructor library for structured GPT-4o outputs.
 """
 import logging
+import json
 from uuid import UUID
 from typing import List, Tuple
 
@@ -13,8 +14,22 @@ from sqlalchemy import select
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.core.config import settings
-from app.models import Document, DocumentChunk
-from app.schemas.study import FlashcardSet, QuizSet, FlashcardResponse, QuizResponse
+from app.models import (
+    Document,
+    DocumentChunk,
+    StudyNote,
+    StudyFlashcardSet,
+    StudyQuizSet
+)
+from app.schemas.study import (
+    FlashcardSet,
+    QuizSet,
+    FlashcardResponse,
+    QuizResponse,
+    StudyNoteResponse,
+    StudyHistoryResponse,
+    StudyHistoryItem
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,13 +55,17 @@ class StudyService:
     async def generate_flashcards(
         self,
         document_id: UUID,
+        user_id: UUID,
+        count: int,
         session: AsyncSession
     ) -> FlashcardResponse:
         """
-        Generate flashcards from a document.
+        Generate and persist flashcards from a document.
 
         Args:
             document_id: UUID of the document
+            user_id: UUID of the user generating flashcards
+            count: Number of flashcards to generate (5-20)
             session: Async database session
 
         Returns:
@@ -56,33 +75,54 @@ class StudyService:
             ValueError: If document not found or has no processed chunks
             Exception: If generation fails
         """
-        logger.info(f"Generating flashcards for document {document_id}")
+        logger.info(f"Generating {count} flashcards for document {document_id}")
 
         # Fetch document and content
         document, content = await self._get_document_content(document_id, session)
 
         # Generate flashcards using GPT-4o with instructor
-        flashcard_set = await self._generate_flashcard_set(content, document.filename)
+        flashcard_set = await self._generate_flashcard_set(content, document.filename, count)
 
         logger.info(f"Generated {len(flashcard_set.flashcards)} flashcards")
 
+        # Persist to database
+        flashcard_json = json.dumps([f.model_dump() for f in flashcard_set.flashcards])
+
+        db_set = StudyFlashcardSet(
+            document_id=document_id,
+            user_id=user_id,
+            flashcards=flashcard_json,
+            total_cards=len(flashcard_set.flashcards)
+        )
+        session.add(db_set)
+        await session.commit()
+        await session.refresh(db_set)
+
+        logger.info(f"Persisted flashcard set {db_set.id}")
+
         return FlashcardResponse(
+            set_id=db_set.id,
             flashcards=flashcard_set.flashcards,
             document_id=document_id,
             document_name=document.filename,
-            total_cards=len(flashcard_set.flashcards)
+            total_cards=db_set.total_cards,
+            created_at=db_set.created_at
         )
 
     async def generate_quiz(
         self,
         document_id: UUID,
+        user_id: UUID,
+        count: int,
         session: AsyncSession
     ) -> QuizResponse:
         """
-        Generate a multiple-choice quiz from a document.
+        Generate and persist a multiple-choice quiz from a document.
 
         Args:
             document_id: UUID of the document
+            user_id: UUID of the user generating quiz
+            count: Number of quiz questions to generate (3-15)
             session: Async database session
 
         Returns:
@@ -92,21 +132,194 @@ class StudyService:
             ValueError: If document not found or has no processed chunks
             Exception: If generation fails
         """
-        logger.info(f"Generating quiz for document {document_id}")
+        logger.info(f"Generating {count} quiz questions for document {document_id}")
 
         # Fetch document and content
         document, content = await self._get_document_content(document_id, session)
 
         # Generate quiz using GPT-4o with instructor
-        quiz_set = await self._generate_quiz_set(content, document.filename)
+        quiz_set = await self._generate_quiz_set(content, document.filename, count)
 
         logger.info(f"Generated {len(quiz_set.questions)} quiz questions")
 
+        # Persist to database
+        questions_json = json.dumps([q.model_dump() for q in quiz_set.questions])
+
+        db_set = StudyQuizSet(
+            document_id=document_id,
+            user_id=user_id,
+            questions=questions_json,
+            total_questions=len(quiz_set.questions)
+        )
+        session.add(db_set)
+        await session.commit()
+        await session.refresh(db_set)
+
+        logger.info(f"Persisted quiz set {db_set.id}")
+
         return QuizResponse(
+            set_id=db_set.id,
             questions=quiz_set.questions,
             document_id=document_id,
             document_name=document.filename,
-            total_questions=len(quiz_set.questions)
+            total_questions=db_set.total_questions,
+            created_at=db_set.created_at
+        )
+
+    async def generate_study_note(
+        self,
+        document_id: UUID,
+        user_id: UUID,
+        mode: str,
+        session: AsyncSession
+    ) -> StudyNoteResponse:
+        """
+        Generate and persist study note (brief or thorough) from a document.
+
+        Args:
+            document_id: UUID of the document
+            user_id: UUID of the user generating note
+            mode: "brief" for cheat sheet or "thorough" for detailed lesson
+            session: Async database session
+
+        Returns:
+            StudyNoteResponse with generated note
+
+        Raises:
+            ValueError: If document not found, mode invalid, or no processed chunks
+            Exception: If generation fails
+        """
+        logger.info(f"Generating {mode} study note for document {document_id}")
+
+        # Fetch document and content
+        document, content = await self._get_document_content(document_id, session)
+
+        # Generate note based on mode
+        if mode == "brief":
+            note_content = await self._generate_brief_note(content)
+        elif mode == "thorough":
+            note_content = await self._generate_thorough_note(content)
+        else:
+            raise ValueError(f"Invalid mode: {mode}. Must be 'brief' or 'thorough'")
+
+        logger.info(f"Generated {mode} note ({len(note_content)} chars)")
+
+        # Persist to database
+        db_note = StudyNote(
+            document_id=document_id,
+            user_id=user_id,
+            mode=mode,
+            content=note_content
+        )
+        session.add(db_note)
+        await session.commit()
+        await session.refresh(db_note)
+
+        logger.info(f"Persisted study note {db_note.id}")
+
+        return StudyNoteResponse(
+            note_id=db_note.id,
+            document_id=document_id,
+            document_name=document.filename,
+            mode=mode,
+            content=note_content,
+            created_at=db_note.created_at
+        )
+
+    async def get_study_history(
+        self,
+        document_id: UUID,
+        user_id: UUID,
+        session: AsyncSession
+    ) -> StudyHistoryResponse:
+        """
+        Get all study materials for a document created by a user.
+
+        Args:
+            document_id: UUID of the document
+            user_id: UUID of the user
+            session: Async database session
+
+        Returns:
+            StudyHistoryResponse with all study materials
+
+        Raises:
+            ValueError: If document not found
+        """
+        logger.info(f"Fetching study history for document {document_id}, user {user_id}")
+
+        # Fetch document
+        result = await session.execute(
+            select(Document).where(Document.id == document_id)
+        )
+        document = result.scalar_one_or_none()
+
+        if not document:
+            raise ValueError(f"Document {document_id} not found")
+
+        # Fetch all study materials
+        items: List[StudyHistoryItem] = []
+
+        # Fetch study notes
+        result = await session.execute(
+            select(StudyNote)
+            .where(StudyNote.document_id == document_id)
+            .where(StudyNote.user_id == user_id)
+            .order_by(StudyNote.created_at.desc())
+        )
+        notes = result.scalars().all()
+        for note in notes:
+            items.append(StudyHistoryItem(
+                id=note.id,
+                type="note",
+                mode=note.mode,
+                count=None,
+                created_at=note.created_at
+            ))
+
+        # Fetch flashcard sets
+        result = await session.execute(
+            select(StudyFlashcardSet)
+            .where(StudyFlashcardSet.document_id == document_id)
+            .where(StudyFlashcardSet.user_id == user_id)
+            .order_by(StudyFlashcardSet.created_at.desc())
+        )
+        flashcard_sets = result.scalars().all()
+        for fset in flashcard_sets:
+            items.append(StudyHistoryItem(
+                id=fset.id,
+                type="flashcards",
+                mode=None,
+                count=fset.total_cards,
+                created_at=fset.created_at
+            ))
+
+        # Fetch quiz sets
+        result = await session.execute(
+            select(StudyQuizSet)
+            .where(StudyQuizSet.document_id == document_id)
+            .where(StudyQuizSet.user_id == user_id)
+            .order_by(StudyQuizSet.created_at.desc())
+        )
+        quiz_sets = result.scalars().all()
+        for qset in quiz_sets:
+            items.append(StudyHistoryItem(
+                id=qset.id,
+                type="quiz",
+                mode=None,
+                count=qset.total_questions,
+                created_at=qset.created_at
+            ))
+
+        # Sort all items by created_at desc
+        items.sort(key=lambda x: x.created_at, reverse=True)
+
+        logger.info(f"Found {len(items)} study history items")
+
+        return StudyHistoryResponse(
+            document_id=document_id,
+            document_name=document.filename,
+            items=items
         )
 
     async def _get_document_content(
@@ -169,7 +382,8 @@ class StudyService:
     async def _generate_flashcard_set(
         self,
         content: str,
-        document_name: str
+        document_name: str,
+        count: int = 10
     ) -> FlashcardSet:
         """
         Generate flashcards using GPT-4o with instructor.
@@ -177,16 +391,17 @@ class StudyService:
         Args:
             content: Document text content
             document_name: Name of the document (for context)
+            count: Number of flashcards to generate (5-20)
 
         Returns:
             FlashcardSet with generated flashcards
         """
-        system_prompt = """You are an expert educator creating study flashcards.
+        system_prompt = f"""You are an expert educator creating study flashcards.
 
 Your task is to generate high-quality flashcards from the provided educational material.
 
 Guidelines:
-- Create exactly 10 flashcards that cover the most important concepts
+- Create exactly {count} flashcards that cover the most important concepts
 - Front of card: Clear, concise question or term
 - Back of card: Complete, accurate answer or definition
 - Focus on key concepts, definitions, processes, and important facts
@@ -200,7 +415,7 @@ Guidelines:
 Content:
 {content}
 
-Generate 10 flashcards covering the most important concepts from this material."""
+Generate {count} flashcards covering the most important concepts from this material."""
 
         # Instructor automatically validates response against FlashcardSet schema
         flashcard_set = await self.client.chat.completions.create(
@@ -223,7 +438,8 @@ Generate 10 flashcards covering the most important concepts from this material."
     async def _generate_quiz_set(
         self,
         content: str,
-        document_name: str
+        document_name: str,
+        count: int = 5
     ) -> QuizSet:
         """
         Generate quiz questions using GPT-4o with instructor.
@@ -231,16 +447,17 @@ Generate 10 flashcards covering the most important concepts from this material."
         Args:
             content: Document text content
             document_name: Name of the document (for context)
+            count: Number of quiz questions to generate (3-15)
 
         Returns:
             QuizSet with generated quiz questions
         """
-        system_prompt = """You are an expert educator creating multiple-choice quiz questions.
+        system_prompt = f"""You are an expert educator creating multiple-choice quiz questions.
 
 Your task is to generate high-quality quiz questions from the provided educational material.
 
 Guidelines:
-- Create exactly 5 multiple-choice questions covering key concepts
+- Create exactly {count} multiple-choice questions covering key concepts
 - Each question should have 4 answer options
 - Ensure exactly one option is correct
 - Write clear, unambiguous questions
@@ -255,7 +472,7 @@ Guidelines:
 Content:
 {content}
 
-Generate 5 multiple-choice quiz questions testing understanding of this material."""
+Generate {count} multiple-choice quiz questions testing understanding of this material."""
 
         # Instructor automatically validates response against QuizSet schema
         quiz_set = await self.client.chat.completions.create(
@@ -279,6 +496,86 @@ Generate 5 multiple-choice quiz questions testing understanding of this material
                 raise ValueError("Generated quiz has invalid correct_answer_index")
 
         return quiz_set
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10)
+    )
+    async def _generate_brief_note(self, content: str) -> str:
+        """
+        Generate brief study note (cheat sheet) from content.
+
+        Args:
+            content: Document text content
+
+        Returns:
+            Markdown-formatted brief study note
+        """
+        prompt = f"""Create a concise study cheat sheet from the following content.
+
+Content:
+{content}
+
+Generate a brief cheat sheet with:
+- Key concepts (bullet points)
+- Important formulas/equations
+- Critical dates/facts
+- Quick reference facts
+
+Format as clean Markdown. Be concise but comprehensive. Maximum 1000 characters."""
+
+        response = await self.client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=1000
+        )
+
+        return response.choices[0].message.content
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10)
+    )
+    async def _generate_thorough_note(self, content: str) -> str:
+        """
+        Generate thorough study note (structured lesson) from content.
+
+        Args:
+            content: Document text content
+
+        Returns:
+            Markdown-formatted thorough study note
+        """
+        prompt = f"""Create a comprehensive study guide from the following content.
+
+Content:
+{content}
+
+Structure as a detailed lesson with these sections:
+
+# Introduction
+[Brief overview of the topic]
+
+# Core Concepts
+[Main ideas explained in detail]
+
+# Key Examples
+[Illustrative examples with explanations]
+
+# Summary
+[Recap of main points]
+
+Format as well-structured Markdown with headers, bullet points, and emphasis. Be thorough and educational."""
+
+        response = await self.client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=2000
+        )
+
+        return response.choices[0].message.content
 
 
 # Singleton instance
