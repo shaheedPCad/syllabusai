@@ -101,9 +101,10 @@ export function QuizSession({ data, onBack }: QuizSessionProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <RadioGroup
-            value={selectedAnswer?.toString()}
+            value={selectedAnswer !== null ? selectedAnswer.toString() : undefined}
             onValueChange={(value) => setSelectedAnswer(Number(value))}
             disabled={hasAnswered}
+            key={currentIndex}
           >
             {currentQuestion.options.map((option, index) => {
               const isThisCorrect = index === currentQuestion.correct_answer_index;

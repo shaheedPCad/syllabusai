@@ -99,9 +99,14 @@ export function StudyView({ courseId }: StudyViewProps) {
   const [view, setView] = useState<ViewMode>('setup');
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(false);
   const [loadingDocuments, setLoadingDocuments] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Separate loading states for each mode
+  const [loadingBrief, setLoadingBrief] = useState(false);
+  const [loadingThorough, setLoadingThorough] = useState(false);
+  const [loadingFlashcards, setLoadingFlashcards] = useState(false);
+  const [loadingQuiz, setLoadingQuiz] = useState(false);
 
   // Mode-specific state
   const [studyNoteData, setStudyNoteData] = useState<StudyNoteResponse | null>(null);
@@ -133,7 +138,7 @@ export function StudyView({ courseId }: StudyViewProps) {
     if (!selectedDocumentId) return;
 
     try {
-      setLoading(true);
+      setLoadingBrief(true);
       setError(null);
       const response = await generateStudyNote(selectedDocumentId, 'brief');
       setStudyNoteData(response);
@@ -141,7 +146,7 @@ export function StudyView({ courseId }: StudyViewProps) {
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to generate brief note');
     } finally {
-      setLoading(false);
+      setLoadingBrief(false);
     }
   };
 
@@ -149,7 +154,7 @@ export function StudyView({ courseId }: StudyViewProps) {
     if (!selectedDocumentId) return;
 
     try {
-      setLoading(true);
+      setLoadingThorough(true);
       setError(null);
       const response = await generateStudyNote(selectedDocumentId, 'thorough');
       setStudyNoteData(response);
@@ -157,7 +162,7 @@ export function StudyView({ courseId }: StudyViewProps) {
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to generate thorough note');
     } finally {
-      setLoading(false);
+      setLoadingThorough(false);
     }
   };
 
@@ -165,7 +170,7 @@ export function StudyView({ courseId }: StudyViewProps) {
     if (!selectedDocumentId) return;
 
     try {
-      setLoading(true);
+      setLoadingFlashcards(true);
       setError(null);
       const response = await generateFlashcards(selectedDocumentId, flashcardCount);
       setFlashcardData(response);
@@ -173,7 +178,7 @@ export function StudyView({ courseId }: StudyViewProps) {
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to generate flashcards');
     } finally {
-      setLoading(false);
+      setLoadingFlashcards(false);
     }
   };
 
@@ -181,7 +186,7 @@ export function StudyView({ courseId }: StudyViewProps) {
     if (!selectedDocumentId) return;
 
     try {
-      setLoading(true);
+      setLoadingQuiz(true);
       setError(null);
       const response = await generateQuiz(selectedDocumentId, quizCount);
       setQuizData(response);
@@ -189,7 +194,7 @@ export function StudyView({ courseId }: StudyViewProps) {
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to generate quiz');
     } finally {
-      setLoading(false);
+      setLoadingQuiz(false);
     }
   };
 
@@ -253,8 +258,8 @@ export function StudyView({ courseId }: StudyViewProps) {
                   title="Brief Review"
                   description="Quick cheat sheet with key concepts"
                   onClick={handleGenerateBrief}
-                  disabled={!selectedDocumentId || loading}
-                  loading={loading}
+                  disabled={!selectedDocumentId || loadingBrief || loadingThorough || loadingFlashcards || loadingQuiz}
+                  loading={loadingBrief}
                 />
 
                 <ModeCard
@@ -262,8 +267,8 @@ export function StudyView({ courseId }: StudyViewProps) {
                   title="Deep Dive"
                   description="Detailed lesson with examples"
                   onClick={handleGenerateThorough}
-                  disabled={!selectedDocumentId || loading}
-                  loading={loading}
+                  disabled={!selectedDocumentId || loadingBrief || loadingThorough || loadingFlashcards || loadingQuiz}
+                  loading={loadingThorough}
                 />
 
                 <ModeCard
@@ -271,8 +276,8 @@ export function StudyView({ courseId }: StudyViewProps) {
                   title="Flashcards"
                   description="Practice with Q&A cards"
                   onClick={handleGenerateFlashcards}
-                  disabled={!selectedDocumentId || loading}
-                  loading={loading}
+                  disabled={!selectedDocumentId || loadingBrief || loadingThorough || loadingFlashcards || loadingQuiz}
+                  loading={loadingFlashcards}
                   showCountInput
                   count={flashcardCount}
                   onCountChange={setFlashcardCount}
@@ -285,8 +290,8 @@ export function StudyView({ courseId }: StudyViewProps) {
                   title="Practice Quiz"
                   description="Test your knowledge"
                   onClick={handleGenerateQuiz}
-                  disabled={!selectedDocumentId || loading}
-                  loading={loading}
+                  disabled={!selectedDocumentId || loadingBrief || loadingThorough || loadingFlashcards || loadingQuiz}
+                  loading={loadingQuiz}
                   showCountInput
                   count={quizCount}
                   onCountChange={setQuizCount}
