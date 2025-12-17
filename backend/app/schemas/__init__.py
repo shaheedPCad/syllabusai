@@ -16,6 +16,12 @@ from app.schemas.study import (
     StudyHistoryItem,
     StudyHistoryResponse,
 )
+from app.schemas.friend import FriendRead, FriendshipRead, FriendRequestCreate, FriendRequestAccept
+from app.schemas.mentor import UserBasic, MentorProfileRead, MentorFollowCreate
+from app.schemas.lesson import LessonCreate, LessonRead, LessonProgressRead, LessonProgressUpdate
+from app.schemas.task import TaskCreate, TaskUpdate, TaskRead
+from app.schemas.inbox import MessageCreate, MessageRead
+from app.schemas.dashboard import DashboardStats, CourseProgressStats
 
 __all__ = [
     "UserRead",
@@ -38,4 +44,23 @@ __all__ = [
     "StudyNoteResponse",
     "StudyHistoryItem",
     "StudyHistoryResponse",
+    # Dashboard schemas
+    "FriendRead",
+    "FriendshipRead",
+    "FriendRequestCreate",
+    "FriendRequestAccept",
+    "UserBasic",
+    "MentorProfileRead",
+    "MentorFollowCreate",
+    "LessonCreate",
+    "LessonRead",
+    "LessonProgressRead",
+    "LessonProgressUpdate",
+    "TaskCreate",
+    "TaskUpdate",
+    "TaskRead",
+    "MessageCreate",
+    "MessageRead",
+    "DashboardStats",
+    "CourseProgressStats",
 ]
