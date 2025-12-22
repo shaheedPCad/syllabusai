@@ -367,3 +367,7 @@ function StatCounter({ icon, value, label, suffix, delay }: StatCounterProps) {
     </motion.div>
   );
 }
+
+
+
+

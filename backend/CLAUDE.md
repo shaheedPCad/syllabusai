@@ -139,20 +139,54 @@ OPENAI_API_KEY=your-openai-api-key
 
 ```
 backend/
-├── app/                    # FastAPI application (to be created)
-│   ├── main.py            # FastAPI app entry point
-│   ├── celery_worker.py   # Celery configuration
-│   ├── models/            # SQLModel database models
-│   ├── api/               # API route handlers
-│   ├── services/          # Business logic
-│   └── core/              # Configuration and utilities
-├── alembic/               # Database migrations (to be initialized)
-├── rag_spike.py           # RAG prototype (spike code)
-├── debug_pdf.py           # PDF debugging utility
-├── Dockerfile             # Container definition
-├── requirements.txt       # Python dependencies
-├── .env                   # Environment variables
-└── CLAUDE.md             # This file
+├── app/                         # FastAPI application
+│   ├── main.py                 # FastAPI app entry point
+│   ├── celery_worker.py        # Celery configuration
+│   ├── initial_data.py         # Database seed data
+│   ├── models.py               # SQLModel database models (all models in one file)
+│   ├── api/                    # API route handlers
+│   │   ├── deps.py            # Dependencies (get_current_user, etc.)
+│   │   └── v1/
+│   │       ├── api.py         # API router aggregation
+│   │       └── endpoints/
+│   │           ├── courses.py # Course CRUD
+│   │           ├── documents.py # Document upload/retrieval
+│   │           ├── chat.py    # Chat with AI tutor
+│   │           ├── study.py   # Flashcards, quizzes, notes
+│   │           ├── friends.py # Friend management (NOT registered in router yet)
+│   │           ├── inbox.py   # Messaging system (NOT registered in router yet)
+│   │           ├── lessons.py # Lesson management (NOT registered in router yet)
+│   │           ├── mentors.py # Mentor profiles (NOT registered in router yet)
+│   │           └── tasks.py   # Task/todo management (NOT registered in router yet)
+│   ├── schemas/                # Pydantic schemas for request/response
+│   │   ├── user.py
+│   │   ├── course.py
+│   │   ├── document.py
+│   │   ├── chat.py
+│   │   ├── study.py
+│   │   ├── dashboard.py       # Dashboard statistics schemas
+│   │   ├── friend.py          # Friend schemas
+│   │   ├── inbox.py           # Message schemas
+│   │   ├── lesson.py          # Lesson schemas
+│   │   ├── mentor.py          # Mentor schemas
+│   │   └── task.py            # Task schemas
+│   ├── services/               # Business logic
+│   │   ├── rag_service.py     # RAG pipeline (pgvector + OpenAI)
+│   │   ├── chat_service.py    # Chat orchestration
+│   │   ├── study_service.py   # Study materials generation
+│   │   └── storage.py         # S3/file storage
+│   └── core/                   # Configuration and utilities
+│       ├── config.py          # Settings and environment variables
+│       └── db.py              # Database connection and session
+├── alembic/                    # Database migrations
+│   └── versions/              # Migration scripts
+├── rag_spike.py               # RAG prototype (spike code - reference only)
+├── debug_pdf.py               # PDF debugging utility
+├── docker-compose.yml         # Docker services orchestration
+├── Dockerfile                 # Container definition
+├── requirements.txt           # Python dependencies
+├── .env                       # Environment variables
+└── CLAUDE.md                 # This file
 ```
 
 ## RAG Pipeline (Prototype)
@@ -370,6 +404,259 @@ chunks_with_scores = result.all()
 ### Resources
 - [pgvector Documentation](https://github.com/pgvector/pgvector)
 - [pgvector-python SQLAlchemy Integration](https://github.com/pgvector/pgvector-python)
+
+## API Endpoints
+
+### Currently Active Endpoints (Registered in api.py)
+
+All endpoints are prefixed with `/api/v1`
+
+#### Courses (`/courses`)
+- `GET /courses` - Get all courses for current user (teachers: created, students: enrolled)
+- `POST /courses` - Create new course (teachers only)
+- `GET /courses/{course_id}` - Get specific course details
+- `POST /courses/join` - Join course by join code (students only)
+
+#### Documents (`/courses/{course_id}/documents`)
+- `GET /courses/{course_id}/documents` - Get all documents for a course
+- `POST /courses/{course_id}/documents` - Upload document (triggers background processing)
+
+#### Chat (`/courses/{course_id}/chat`)
+- `POST /courses/{course_id}/chat` - Send message to AI tutor, get RAG-enhanced response
+
+#### Study (`/courses/{course_id}/study`)
+- `GET /courses/{course_id}/study/flashcards` - Get flashcard deck
+- `POST /courses/{course_id}/study/flashcards/generate` - Generate new flashcards
+- `GET /courses/{course_id}/study/quiz` - Get quiz
+- `POST /courses/{course_id}/study/quiz/generate` - Generate new quiz
+- `GET /courses/{course_id}/study/notes` - Get study notes
+- `POST /courses/{course_id}/study/notes/generate` - Generate new notes
+
+### New Endpoints (Created but NOT Yet Registered)
+
+The following endpoints have been implemented but are **not yet included in `api.py`**. To activate them, add them to `app/api/v1/api.py`:
+
+```python
+# In app/api/v1/api.py
+from app.api.v1.endpoints import courses, documents, chat, study, friends, inbox, lessons, mentors, tasks
+
+api_router.include_router(friends.router, prefix="/friends", tags=["friends"])
+api_router.include_router(inbox.router, prefix="/inbox", tags=["inbox"])
+api_router.include_router(lessons.router, prefix="/lessons", tags=["lessons"])
+api_router.include_router(mentors.router, prefix="/mentors", tags=["mentors"])
+api_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
+```
+
+#### Friends (`/friends`) - NOT REGISTERED
+- `GET /friends` - Get user's accepted friendships
+- `POST /friends` - Send friend request to another user
+- `PUT /friends/{friendship_id}/accept` - Accept pending friend request
+- `DELETE /friends/{friendship_id}` - Remove friend or reject request
+
+#### Inbox (`/inbox`) - NOT REGISTERED
+- `GET /inbox` - Get user's messages (sent and received)
+- `POST /inbox` - Send message to another user
+- `PUT /inbox/{message_id}/read` - Mark message as read
+- `DELETE /inbox/{message_id}` - Delete message
+
+#### Lessons (`/lessons`) - NOT REGISTERED
+- `GET /courses/{course_id}/lessons` - Get all lessons for a course
+- `POST /courses/{course_id}/lessons` - Create new lesson (teachers only)
+- `GET /lessons/{lesson_id}` - Get specific lesson details
+- `PUT /lessons/{lesson_id}` - Update lesson (teachers only)
+- `DELETE /lessons/{lesson_id}` - Delete lesson (teachers only)
+- `GET /lessons/{lesson_id}/progress` - Get user's progress for lesson
+- `PUT /lessons/{lesson_id}/progress` - Update user's progress for lesson
+
+#### Mentors (`/mentors`) - NOT REGISTERED
+- `GET /mentors` - Get all mentor profiles
+- `POST /mentors` - Create mentor profile (teachers only)
+- `GET /mentors/{mentor_id}` - Get specific mentor profile
+- `POST /mentors/{mentor_id}/follow` - Follow a mentor
+- `DELETE /mentors/{mentor_id}/follow` - Unfollow a mentor
+
+#### Tasks (`/tasks`) - NOT REGISTERED
+- `GET /tasks` - Get user's tasks
+- `POST /tasks` - Create new task
+- `PUT /tasks/{task_id}` - Update task
+- `DELETE /tasks/{task_id}` - Delete task
+- `PUT /tasks/{task_id}/complete` - Mark task as complete
+
+## Database Models
+
+### Core Models (Implemented)
+
+**User** (`users` table)
+- Authentication and profile information
+- Roles: `teacher` or `student`
+- Dashboard extensions: avatar, bio, phone, timezone
+- Relationships: courses, enrollments, grades, study materials, friends, messages, tasks
+
+**Course** (`courses` table)
+- Course information: title, description, course_code
+- Join code for student enrollment (6-character alphanumeric)
+- Dashboard extensions: category, thumbnail_url, is_published
+- Relationships: teacher, students (via Enrollment), documents, grades, lessons, flashcards, quizzes, notes
+
+**Enrollment** (`enrollments` table)
+- Junction table for User ↔ Course many-to-many
+- Tracks student enrollment in courses
+- Unique constraint on (user_id, course_id)
+
+**Document** (`documents` table)
+- Uploaded course materials (PDFs, etc.)
+- S3 storage: s3_key, filename, mime_type
+- Processing status: `pending`, `processing`, `completed`, `failed`
+- Celery task ID for background processing
+- Relationships: course, chunks (for RAG)
+
+**DocumentChunk** (`document_chunks` table)
+- Text chunks extracted from documents
+- pgvector embedding (1536 dimensions)
+- Chunk metadata: sequence number, char count, token count
+- Used for RAG similarity search
+
+**Grade** (`grades` table)
+- Student grades for assignments/tests
+- Score, max_score, feedback
+- Relationships: student, course
+
+### Study Models (Implemented)
+
+**StudyFlashcardSet** (`study_flashcard_sets` table)
+- Generated flashcard decks for courses
+- JSON array of flashcard objects: `[{"term": "...", "definition": "..."}]`
+- Timestamps: created_at, updated_at
+
+**StudyQuizSet** (`study_quiz_sets` table)
+- Generated quiz sets for courses
+- JSON array of quiz questions with multiple choice options
+- Timestamps: created_at, updated_at
+
+**StudyNote** (`study_notes` table)
+- AI-generated study notes for courses
+- Markdown content
+- Timestamps: created_at, updated_at
+
+### Dashboard Models (Implemented)
+
+**MentorProfile** (`mentor_profiles` table)
+- Teacher profiles with expertise, availability, bio
+- Hourly rate (optional)
+- Relationships: user, followers (students who follow this mentor)
+
+**UserMentorFollow** (`user_mentor_follows` table)
+- Junction table for User ↔ MentorProfile following
+- Tracks which students follow which mentors
+
+**Lesson** (`lessons` table)
+- Course lessons with content, video_url, duration
+- Order index for sequencing
+- Published status
+- Relationships: course, progress
+
+**LessonProgress** (`lesson_progress` table)
+- User progress tracking for lessons
+- Status: `not_started`, `in_progress`, `completed`
+- Progress percentage, time spent, last position (video timestamp)
+- Unique constraint on (user_id, lesson_id)
+
+**Task** (`tasks` table)
+- User tasks/todos with due dates
+- Priority levels
+- Status: `pending`, `in_progress`, `completed`
+- Course association (optional)
+
+**Friendship** (`friendships` table)
+- Friend relationships between users
+- Status: `pending`, `accepted`, `blocked`
+- Bidirectional relationship (user_id ↔ friend_id)
+
+**Message** (`messages` table)
+- Direct messages between users
+- Subject, content, read status
+- Relationships: sender, recipient
+
+## Authentication & Authorization
+
+### Dev Auth System
+
+The backend uses a **development authentication** system for rapid prototyping. This should be replaced with proper JWT authentication in production.
+
+**How it works:**
+- Frontend sends `x-user-email` header with every request
+- Backend dependency `get_current_user()` (in `app/api/deps.py`) looks up the user by email
+- No password verification in development mode
+
+**Example:**
+```python
+# app/api/deps.py
+async def get_current_user(
+    x_user_email: str = Header(...),
+    session: AsyncSession = Depends(get_session)
+) -> User:
+    """Get current user from x-user-email header."""
+    result = await session.execute(
+        select(User).where(User.email == x_user_email)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+```
+
+**Testing different roles:**
+- Teacher: `x-user-email: teacher@clarity.com`
+- Student: `x-user-email: student@clarity.com`
+- Different student: `x-user-email: alice@clarity.com`
+
+### Authorization Patterns
+
+**Teacher-only endpoints:**
+```python
+@router.post("/courses")
+async def create_course(
+    course_data: CreateCourseRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    if current_user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Only teachers can create courses")
+    # ...
+```
+
+**Course enrollment check:**
+```python
+async def get_user_course(
+    course_id: UUID,
+    current_user: User,
+    session: AsyncSession
+) -> Course:
+    """Verify user has access to course (teacher or enrolled student)."""
+    result = await session.execute(
+        select(Course).where(Course.id == course_id)
+    )
+    course = result.scalar_one_or_none()
+
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Check access
+    if current_user.role == "teacher" and course.teacher_id == current_user.id:
+        return course  # Teacher owns course
+
+    # Check student enrollment
+    enrollment = await session.execute(
+        select(Enrollment).where(
+            Enrollment.user_id == current_user.id,
+            Enrollment.course_id == course_id
+        )
+    )
+    if enrollment.scalar_one_or_none():
+        return course
+
+    raise HTTPException(status_code=403, detail="Not enrolled in this course")
+```
 
 ## Testing
 
